@@ -305,35 +305,34 @@ Q-commerce riders have no access to a desktop during their shift. Every interact
 ## Roadmap
 
 ### Phase 1 — Ideation & Foundation (March 4–20)
-- [x] Problem research and persona definition
-- [x] Weekly premium model design (ZAPE)
-- [x] Parametric trigger specification (including TrafficBlock)
-- [x] TriBrain + LangGraph architecture design
-- [x] Adversarial defense strategy
-- [x] Tech stack selection
-- [ ] FastAPI project scaffold
-- [ ] Open-Meteo integration proof-of-concept
-- [ ] Pincode risk database (zone_risk.json)
+- Problem research and persona definition
+- Weekly premium model design (ZAPE)
+- Parametric trigger specification (including TrafficBlock)
+- TriBrain + LangGraph architecture design
+- Adversarial defense strategy
+- Tech stack selection
+- FastAPI project scaffold
+- Open-Meteo integration proof-of-concept
+- Pincode risk database (zone_risk.json)
 
 ### Phase 2 — Automation & Protection (March 21 – April 4)
-- [ ] Worker registration and onboarding flow (Flutter)
-- [ ] ZAPE premium engine (live calculation)
-- [ ] RainLock, AQI Guard, and TrafficBlock triggers (live APIs)
-- [ ] ZoneLock with manual verification flow
-- [ ] Claims management module
-- [ ] Manual escalation feature
-- [ ] GPS variance and zone affinity scoring
-- [ ] Device fingerprint clustering (fraud ring detection)
+- Worker registration and onboarding flow (Flutter)
+- ZAPE premium engine (live calculation)
+- RainLock, AQI Guard, and TrafficBlock triggers (live APIs)
+- ZoneLock with manual verification flow
+- Claims management module
+- Manual escalation feature
+- GPS variance and zone affinity scoring
+- Device fingerprint clustering (fraud ring detection)
 
 ### Phase 3 — Scale & Optimise (April 5–17)
-- [ ] Isolation Forest fraud model (trained)
-- [ ] Groq + Gemini fallback LLM integration via LangGraph
-- [ ] Accelerometer-based motion signature analysis
-- [ ] Cell tower cross-referencing
-- [ ] Temporal co-claim graph (ring detection)
-- [ ] Razorpay sandbox payouts
-- [ ] Admin analytics dashboard
-- [ ] Full demo video
+- Isolation Forest fraud model (trained)
+- Groq + Gemini fallback LLM integration via LangGraph
+- Accelerometer-based motion signature analysis
+- Cell tower cross-referencing
+- Temporal co-claim graph (ring detection)
+- Razorpay sandbox payouts
+- Admin analytics dashboard
 
 ---
 
