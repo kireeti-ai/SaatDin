@@ -1,0 +1,994 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+import '../../theme/app_colors.dart';
+import '../../models/user_model.dart';
+
+class PayoutsScreen extends StatefulWidget {
+  const PayoutsScreen({super.key});
+
+  @override
+  State<PayoutsScreen> createState() => _PayoutsScreenState();
+}
+
+class _PayoutsScreenState extends State<PayoutsScreen> {
+  final NumberFormat _currencyFormat = NumberFormat('#,##0');
+  final DateFormat _dateFormat = DateFormat('d MMM yyyy');
+  final DateFormat _monthFormat = DateFormat('MMMM yyyy');
+
+  late List<_PayoutEntry> _payouts = _mockPayouts();
+  DateTime _lastUpdated = DateTime.now();
+
+  String _primaryUpi = 'arjun@oksbi';
+  String? _backupUpi = 'arjun.backup@okaxis';
+  bool _primaryVerified = true;
+  bool _backupVerified = false;
+
+  Future<void> _refreshPayouts() async {
+    await Future<void>.delayed(const Duration(milliseconds: 850));
+    setState(() {
+      _lastUpdated = DateTime.now();
+      _payouts = List<_PayoutEntry>.from(_payouts)
+        ..insert(
+          0,
+          _PayoutEntry(
+            date: DateTime.now(),
+            triggerType: 'TrafficBlock',
+            amount: 400,
+            upiRef: 'UPI${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+          ),
+        );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = User.getMockUser();
+    final currentMonthData = _monthlyData(DateTime.now());
+    final previousMonth = DateTime(DateTime.now().year, DateTime.now().month - 1);
+    final previousMonthData = _monthlyData(previousMonth);
+
+    final totalPremiumsPaid = 276;
+    final totalPayoutsReceived = _payouts.fold<int>(0, (sum, item) => sum + item.amount);
+
+    final estimatedWeeklyEarnings = (user.totalEarnings / 4).round();
+    final averageWeeklyPayout = _payouts.isEmpty
+        ? 0
+        : (totalPayoutsReceived / 4).round();
+
+    return Scaffold(
+      backgroundColor: AppColors.scaffoldBackground,
+      body: Stack(
+        children: [
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SizedBox(
+              height: 208,
+              child: CustomPaint(
+                painter: _PayoutsTopBackgroundPainter(),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: RefreshIndicator(
+              onRefresh: _refreshPayouts,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                children: [
+                  _buildTopBar(user),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Payouts',
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -0.4,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Last updated ${DateFormat('h:mm a').format(_lastUpdated)}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildRoiBanner(
+                    totalPremiumsPaid: totalPremiumsPaid,
+                    totalPayoutsReceived: totalPayoutsReceived,
+                  ),
+                  const SizedBox(height: 18),
+                  const _SectionTitle('Monthly Summary'),
+                  const SizedBox(height: 10),
+                  _buildMonthlySummaryCard(
+                    currentMonthData: currentMonthData,
+                    previousMonthData: previousMonthData,
+                  ),
+                  const SizedBox(height: 20),
+                  const _SectionTitle('Earnings vs Payouts'),
+                  const SizedBox(height: 10),
+                  _buildValueRatioCard(
+                    estimatedWeeklyEarnings: estimatedWeeklyEarnings,
+                    averageWeeklyPayout: averageWeeklyPayout,
+                  ),
+                  const SizedBox(height: 20),
+                  const _SectionTitle('UPI Management'),
+                  const SizedBox(height: 10),
+                  _buildUpiManagementCard(context),
+                  const SizedBox(height: 20),
+                  const _SectionTitle('Downloadable Statement'),
+                  const SizedBox(height: 10),
+                  _buildStatementCard(context),
+                  const SizedBox(height: 20),
+                  const _SectionTitle('Payout Feed'),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Pull down to refresh the latest transfers.',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 10),
+                  ..._payouts
+                      .map((entry) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _buildPayoutTile(entry),
+                          )),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopBar(User user) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: const BoxDecoration(
+            color: AppColors.primary,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              user.name.substring(0, 1).toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+        Row(
+          children: [
+            _headerIconButton(
+              icon: Icons.notifications_none,
+              tooltip: 'Notifications',
+              onTap: () => _showSimpleInfo('No new payout alerts'),
+            ),
+            const SizedBox(width: 10),
+            _headerIconButton(
+              icon: Icons.menu,
+              tooltip: 'Menu',
+              onTap: () => _showSimpleInfo('Quick menu shortcuts coming next'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _headerIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+          ),
+          child: Icon(icon, size: 21, color: AppColors.textPrimary),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoiBanner({
+    required int totalPremiumsPaid,
+    required int totalPayoutsReceived,
+  }) {
+    final isPositive = totalPayoutsReceived > totalPremiumsPaid;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isPositive ? AppColors.successLight : AppColors.warningLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isPositive ? AppColors.success : AppColors.warning,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isPositive ? Icons.trending_up : Icons.shield_outlined,
+            color: isPositive ? AppColors.success : AppColors.warning,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              totalPayoutsReceived > 0
+                  ? 'You\'ve paid Rs ${_currencyFormat.format(totalPremiumsPaid)} in premiums. You\'ve received Rs ${_currencyFormat.format(totalPayoutsReceived)} in payouts.'
+                  : 'Your zone has been calm - Rs ${_currencyFormat.format(totalPremiumsPaid)} invested in protection.',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMonthlySummaryCard({
+    required _MonthlySummary currentMonthData,
+    required _MonthlySummary previousMonthData,
+  }) {
+    final thisMonthAmount = currentMonthData.totalReceived;
+    final lastMonthAmount = previousMonthData.totalReceived;
+    final maxValue = (thisMonthAmount > lastMonthAmount
+            ? thisMonthAmount
+            : lastMonthAmount)
+        .clamp(1, 999999);
+
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _metricItem(
+                  label: 'Total Received',
+                  value: 'Rs ${_currencyFormat.format(thisMonthAmount)}',
+                ),
+              ),
+              Expanded(
+                child: _metricItem(
+                  label: 'Payout Count',
+                  value: '${currentMonthData.count}',
+                ),
+              ),
+              Expanded(
+                child: _metricItem(
+                  label: 'Avg / Claim',
+                  value: 'Rs ${_currencyFormat.format(currentMonthData.average)}',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _miniBar(
+                  label: 'This month',
+                  amount: thisMonthAmount,
+                  heightFactor: thisMonthAmount / maxValue,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _miniBar(
+                  label: 'Last month',
+                  amount: lastMonthAmount,
+                  heightFactor: lastMonthAmount / maxValue,
+                  color: AppColors.info,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildValueRatioCard({
+    required int estimatedWeeklyEarnings,
+    required int averageWeeklyPayout,
+  }) {
+    final maxValue =
+        (estimatedWeeklyEarnings > averageWeeklyPayout
+                ? estimatedWeeklyEarnings
+                : averageWeeklyPayout)
+            .clamp(1, 999999);
+
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Your protection value ratio for this week',
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: _ratioBar(
+                  label: 'Est. earnings',
+                  amount: estimatedWeeklyEarnings,
+                  factor: estimatedWeeklyEarnings / maxValue,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ratioBar(
+                  label: 'Payouts received',
+                  amount: averageWeeklyPayout,
+                  factor: averageWeeklyPayout / maxValue,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUpiManagementCard(BuildContext context) {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _upiRow(
+            label: 'Primary UPI',
+            upiId: _primaryUpi,
+            verified: _primaryVerified,
+            onChange: () => _editUpi(
+              context,
+              title: 'Change primary UPI',
+              currentValue: _primaryUpi,
+              onSaved: (value) {
+                setState(() {
+                  _primaryUpi = value;
+                  _primaryVerified = false;
+                });
+              },
+            ),
+            onVerify: () => _verifyPrimary(),
+          ),
+          const Divider(height: 22, color: AppColors.border),
+          _upiRow(
+            label: 'Backup UPI',
+            upiId: _backupUpi ?? 'Not added',
+            verified: _backupVerified,
+            onChange: () => _editUpi(
+              context,
+              title: _backupUpi == null ? 'Add backup UPI' : 'Change backup UPI',
+              currentValue: _backupUpi,
+              onSaved: (value) {
+                setState(() {
+                  _backupUpi = value;
+                  _backupVerified = false;
+                });
+              },
+            ),
+            onVerify: _backupUpi == null ? null : () => _verifyBackup(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatementCard(BuildContext context) {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Generate statement as PDF for ${_monthFormat.format(DateTime.now())} or custom date range.',
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    _showSimpleInfo('Monthly PDF statement generated');
+                  },
+                  icon: const Icon(Icons.download_outlined, size: 18),
+                  label: const Text('This month'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.border),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    _pickCustomRange(context);
+                  },
+                  icon: const Icon(Icons.date_range_outlined, size: 18),
+                  label: const Text('Custom range'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.border),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPayoutTile(_PayoutEntry entry) {
+    return _card(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.successLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.account_balance_wallet_outlined,
+                color: AppColors.success),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.triggerType,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _dateFormat.format(entry.date),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'UPI Ref: ${entry.upiRef}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            'Rs ${_currencyFormat.format(entry.amount)}',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: AppColors.success,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _metricItem({required String label, required String value}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _miniBar({
+    required String label,
+    required int amount,
+    required double heightFactor,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 50,
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: FractionallySizedBox(
+                widthFactor: 1,
+                heightFactor: heightFactor.clamp(0.08, 1.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          ),
+          Text(
+            'Rs ${_currencyFormat.format(amount)}',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ratioBar({
+    required String label,
+    required int amount,
+    required double factor,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 84,
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: FractionallySizedBox(
+                widthFactor: 1,
+                heightFactor: factor.clamp(0.08, 1.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          Text(
+            'Rs ${_currencyFormat.format(amount)}',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _upiRow({
+    required String label,
+    required String upiId,
+    required bool verified,
+    required VoidCallback onChange,
+    VoidCallback? onVerify,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                upiId,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: verified ? AppColors.successLight : AppColors.warningLight,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                verified ? 'Verified' : 'Unverified',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: verified ? AppColors.success : AppColors.warning,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            OutlinedButton(
+              onPressed: onChange,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.border),
+              ),
+              child: Text(_isUpiAdded(upiId) ? 'Change' : 'Add'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: onVerify,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.border),
+              ),
+              child: const Text('Verify'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  bool _isUpiAdded(String value) {
+    return value.toLowerCase() != 'not added';
+  }
+
+  Widget _card({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: child,
+    );
+  }
+
+  _MonthlySummary _monthlyData(DateTime month) {
+    final sameMonthEntries = _payouts.where(
+      (entry) =>
+          entry.date.year == month.year &&
+          entry.date.month == month.month,
+    );
+
+    final count = sameMonthEntries.length;
+    final total = sameMonthEntries.fold<int>(0, (sum, item) => sum + item.amount);
+    final avg = count == 0 ? 0 : (total / count).round();
+
+    return _MonthlySummary(totalReceived: total, count: count, average: avg);
+  }
+
+  Future<void> _editUpi(
+    BuildContext context, {
+    required String title,
+    required String? currentValue,
+    required ValueChanged<String> onSaved,
+  }) async {
+    final controller = TextEditingController(text: currentValue);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            8,
+            16,
+            MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'UPI ID',
+                  hintText: 'name@bank',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final value = controller.text.trim();
+                    if (value.isEmpty || !value.contains('@')) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Enter a valid UPI ID')),
+                      );
+                      return;
+                    }
+                    onSaved(value);
+                    Navigator.pop(sheetContext);
+                    _showSimpleInfo('UPI updated successfully');
+                  },
+                  child: const Text('Save UPI'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    controller.dispose();
+  }
+
+  void _verifyPrimary() {
+    setState(() {
+      _primaryVerified = true;
+    });
+    _showSimpleInfo('Primary UPI verified');
+  }
+
+  void _verifyBackup() {
+    setState(() {
+      _backupVerified = true;
+    });
+    _showSimpleInfo('Backup UPI verified');
+  }
+
+  Future<void> _pickCustomRange(BuildContext context) async {
+    final now = DateTime.now();
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 2),
+      lastDate: now,
+      initialDateRange: DateTimeRange(
+        start: DateTime(now.year, now.month, 1),
+        end: now,
+      ),
+    );
+
+    if (range == null) return;
+
+    final from = DateFormat('d MMM').format(range.start);
+    final to = DateFormat('d MMM').format(range.end);
+    _showSimpleInfo('Custom statement generated for $from - $to');
+  }
+
+  void _showSimpleInfo(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textPrimary,
+      ),
+    );
+  }
+}
+
+class _PayoutEntry {
+  const _PayoutEntry({
+    required this.date,
+    required this.triggerType,
+    required this.amount,
+    required this.upiRef,
+  });
+
+  final DateTime date;
+  final String triggerType;
+  final int amount;
+  final String upiRef;
+}
+
+class _MonthlySummary {
+  const _MonthlySummary({
+    required this.totalReceived,
+    required this.count,
+    required this.average,
+  });
+
+  final int totalReceived;
+  final int count;
+  final int average;
+}
+
+class _PayoutsTopBackgroundPainter extends CustomPainter {
+  const _PayoutsTopBackgroundPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final base = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFFE8F7EE),
+          Color(0xFFEFFAF4),
+          Color(0xFFF8FCFA),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), base);
+
+    final curve = Paint()..color = AppColors.primary.withValues(alpha: 0.08);
+    final path = Path()
+      ..moveTo(0, size.height * 0.72)
+      ..quadraticBezierTo(
+        size.width * 0.35,
+        size.height * 0.56,
+        size.width * 0.72,
+        size.height * 0.74,
+      )
+      ..quadraticBezierTo(
+        size.width * 0.88,
+        size.height * 0.82,
+        size.width,
+        size.height * 0.68,
+      )
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+
+    canvas.drawPath(path, curve);
+
+    final ringPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..color = AppColors.accent.withValues(alpha: 0.22);
+
+    canvas.drawCircle(Offset(size.width * 0.16, size.height * 0.24), 26, ringPaint);
+    canvas.drawCircle(Offset(size.width * 0.82, size.height * 0.18), 34, ringPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+List<_PayoutEntry> _mockPayouts() {
+  final now = DateTime.now();
+
+  return [
+    _PayoutEntry(
+      date: DateTime(now.year, now.month, 24),
+      triggerType: 'RainLock',
+      amount: 400,
+      upiRef: 'UPI48291820',
+    ),
+    _PayoutEntry(
+      date: DateTime(now.year, now.month, 18),
+      triggerType: 'AQI Guard',
+      amount: 320,
+      upiRef: 'UPI48244112',
+    ),
+    _PayoutEntry(
+      date: DateTime(now.year, now.month, 8),
+      triggerType: 'TrafficBlock',
+      amount: 280,
+      upiRef: 'UPI48199033',
+    ),
+    _PayoutEntry(
+      date: DateTime(now.year, now.month - 1, 26),
+      triggerType: 'ZoneLock',
+      amount: 400,
+      upiRef: 'UPI47832109',
+    ),
+    _PayoutEntry(
+      date: DateTime(now.year, now.month - 1, 14),
+      triggerType: 'HeatBlock',
+      amount: 240,
+      upiRef: 'UPI47788941',
+    ),
+  ];
+}
