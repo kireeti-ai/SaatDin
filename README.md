@@ -11,6 +11,7 @@ Parametric income insurance for Q-commerce delivery riders in Bangalore — buil
 
 - [Problem](#problem)
 - [Solution](#solution)
+- [Policy Exclusions](#policy-exclusions)
 - [Persona & Scenarios](#persona--scenarios)
 - [Application Workflow](#application-workflow)
 - [Weekly Premium Model](#weekly-premium-model)
@@ -43,6 +44,28 @@ SaatDin is a parametric income insurance platform. Workers pay a small weekly pr
 The system monitors real-time weather, air quality, and traffic data at the **pincode level**. A flood in Bellandur does not trigger a payout for a rider based in Whitefield. In the rare event the automated system fails, workers have a direct manual escalation path.
 
 **Platform:** Mobile application (Android-first, Flutter).
+
+---
+
+## Policy Exclusions
+
+SaatDin covers **income loss caused by qualifying external disruptions only**. The following are explicitly excluded from all coverage tiers, regardless of their impact on a worker's ability to earn:
+
+| Exclusion Category | Reason |
+|---|---|
+| Health, illness, or injury | Covered under separate health insurance products; outside scope |
+| Life and personal accident | Outside scope by design — income-only coverage |
+| Vehicle damage or repair | Rider bears asset risk; not an income-loss event |
+| War, armed conflict, or civil war | Force majeure exclusion — standard across all parametric products |
+| Government-declared pandemic or epidemic | Systemic, nationwide events cannot be priced at zone level; excluded to prevent adverse selection and actuarial collapse |
+| Nuclear, chemical, or biological events | Force majeure exclusion |
+| Pre-existing income loss (worker already offline before trigger) | Trigger window must overlap with an active shift; retrospective claims not supported |
+| Self-induced disruption | Workers who voluntarily go offline during a non-triggered window are not eligible |
+| Platform-side operational failures | App downtime, dark store closures, or platform policy changes are not external disruptions |
+
+**Why pandemic exclusion specifically:** A city-wide pandemic event (as seen in 2020–21) causes correlated income loss across the entire enrolled worker base simultaneously. A parametric platform operating at pincode level cannot price for this correlation without reinsurance support. Pandemic risk is therefore excluded in Phase 1 and Phase 2, with reinsurance-backed pandemic riders identified as a Phase 3 roadmap item.
+
+> This exclusion list is designed to align with IRDAI guidelines for parametric and micro-insurance products targeting informal sector workers.
 
 ---
 
