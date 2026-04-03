@@ -177,14 +177,18 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       child: Container(
                         width: 40,
                         height: 40,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: AppColors.surfaceLight,
                           shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.border,
+                            width: 1.5,
+                          ),
                         ),
                         child: const Icon(
                           Icons.chevron_left_rounded,
-                          color: AppColors.textSecondary,
-                          size: 24,
+                          color: AppColors.textPrimary,
+                          size: 26,
                         ),
                       ),
                     ),
